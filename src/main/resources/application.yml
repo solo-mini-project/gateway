@@ -2,15 +2,54 @@ spring:
   application:
     name: api-gateway
   config:
-    import: "optional:configserver:"
+    import: "optional:configserver:http://config-server:8888"
   security:
     oauth2:
-      resource server:
+      resourceserver:
         jwt:
-          issuer-uri:
+          issuer-uri: http://keycloak:8080/realms/myrealm
+  cloud:
+    gateway:
+      server:
+        webflux:
+          discovery:
+            locator:
+              enabled: true
+              lower-case-service-id: true
+          routes:
+            - id: product-route
+              uri: lb://PRODUCT-SERVICE
+              predicates:
+                - Path=/product-service/v3/api-docs/**, /api/v1/products/**
+              filters:
+                - RewritePath=/product-service/(?<segment>.*), /${segment}
+            - id: auth-route
+              uri: lb://auth-service
+              predicates:
+                - Path=/auth-service/v3/api-docs/**, /api/v1/files/**, /api/v1/auths/**, /api/v1/users/**
+              filters:
+                - RewritePath=/auth-service/(?<segment>.*), /${segment}
+            - id: category-route
+              uri: lb://category-service
+              predicates:
+                - Path=/category-service/v3/api-docs/**, /api/v1/categories/**
+              filters:
+                - RewritePath=/category-service/(?<segment>.*), /${segment}
+  profiles:
+    active: dev
 eureka:
   client:
     service-url:
-      defaultZone: http://localhost:8761/eureka/
+      defaultZone: http://34.126.135.232:8761/eureka/
+    register-with-eureka: false
 server:
   port: 9090
+springdoc:
+  swagger-ui:
+    urls:
+      - name: product-service
+        url: /product-service/v3/api-docs
+      - name: category-service
+        url: /category-service/v3/api-docs
+      - name: auth-service
+        url: /auth-service/v3/api-docs
